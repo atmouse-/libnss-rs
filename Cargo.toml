@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "libnss",
-    "example-hardcoded"
+    "example-hardcoded",
+    "example-internal"
 ]
