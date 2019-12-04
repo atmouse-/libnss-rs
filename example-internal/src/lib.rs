@@ -8,7 +8,7 @@ extern crate trust_dns_resolver;
 use libnss::host::{AddressFamily, Addresses, Host, HostHooks};
 use libnss::interop::Response;
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr};
 use std::net::SocketAddr;
 use trust_dns_resolver::Resolver;
 use trust_dns_resolver::config::{NameServerConfig, Protocol, ResolverConfig, ResolverOpts};
@@ -20,26 +20,13 @@ impl HostHooks for InternalHost {
     fn get_all_entries() -> Response<Vec<Host>> {
         Response::Success(vec![Host {
             name: "test.internal".to_string(),
-            addresses: Addresses::V6(vec![Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 2)]),
+            addresses: Addresses::V4(vec![Ipv4Addr::new(192, 168, 0, 199)]),
             aliases: vec!["other.internal".to_string()],
         }])
     }
 
-    fn get_host_by_addr(addr: IpAddr) -> Response<Host> {
-        match addr {
-            IpAddr::V4(addr) => {
-                if addr.octets() == [127, 0, 0, 1] {
-                    Response::Success(Host {
-                        name: "test.internal".to_string(),
-                        addresses: Addresses::V4(vec![Ipv4Addr::new(127, 0, 0, 1)]),
-                        aliases: vec![],
-                    })
-                } else {
-                    Response::NotFound
-                }
-            }
-            _ => Response::NotFound,
-        }
+    fn get_host_by_addr(_addr: IpAddr) -> Response<Host> {
+        Response::NotFound
     }
 
     fn get_host_by_name(name: &str, _family: AddressFamily) -> Response<Host> {
