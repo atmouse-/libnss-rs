@@ -11,7 +11,7 @@ use libnss::interop::Response;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::net::SocketAddr;
 use trust_dns_resolver::Resolver;
-use trust_dns_resolver::config::*;
+use trust_dns_resolver::config::{NameServerConfig, Protocol, ResolverConfig, ResolverOpts};
 
 struct InternalHost;
 libnss_host_hooks!(internal, InternalHost);
@@ -28,10 +28,10 @@ impl HostHooks for InternalHost {
     fn get_host_by_addr(addr: IpAddr) -> Response<Host> {
         match addr {
             IpAddr::V4(addr) => {
-                if addr.octets() == [177, 42, 42, 42] {
+                if addr.octets() == [127, 0, 0, 1] {
                     Response::Success(Host {
                         name: "test.internal".to_string(),
-                        addresses: Addresses::V4(vec![Ipv4Addr::new(177, 42, 42, 42)]),
+                        addresses: Addresses::V4(vec![Ipv4Addr::new(127, 0, 0, 1)]),
                         aliases: vec![],
                     })
                 } else {
@@ -42,10 +42,10 @@ impl HostHooks for InternalHost {
         }
     }
 
-    fn get_host_by_name(name: &str, family: AddressFamily) -> Response<Host> {
+    fn get_host_by_name(name: &str, _family: AddressFamily) -> Response<Host> {
         if name.ends_with(".internal") {
             let nameserver = NameServerConfig {
-                socket_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(114, 114, 114, 114)), 53),
+                socket_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 243, 43, 53)), 53),
                 protocol: Protocol::Udp,
                 tls_dns_name: None,
             };
@@ -54,7 +54,12 @@ impl HostHooks for InternalHost {
             resolv_config.add_name_server(nameserver);
 
             // Construct a new Resolver with default configuration options
-            let resolver = Resolver::new(resolv_config, ResolverOpts::default()).unwrap();
+            let resolver = match Resolver::new(resolv_config, ResolverOpts::default()) {
+                Ok(r) => r,
+                Err(_) => {
+                    return Response::Unavail
+                }
+            };
 
             // Lookup the IP addresses associated with a name.
             // The final dot forces this to be an FQDN, otherwise the search rules as specified
@@ -65,20 +70,27 @@ impl HostHooks for InternalHost {
                     if let Some(address) = response.iter().next() {
                         match address {
                             IpAddr::V4(addr) => {
-                                return Response::Success(Host {
+                                Response::Success(Host {
                                     name: name.to_string(),
                                     addresses: Addresses::V4(vec![addr]),
                                     aliases: vec![],
-                                });
+                                })
                             },
                             // ipv6 not supported
-                            IpAddr::V6(addr) => {},
-                        };
-                    };
+                            IpAddr::V6(_addr) => {
+                                Response::NotFound
+                            },
+                        }
+                    } else {
+                        // lookup not found
+                        Response::NotFound
+                    }
                 },
-                Err(_) => {},
-            };
-            Response::NotFound
+                Err(_) => {
+                    // lookup error
+                    Response::NotFound
+                },
+            }
         } else {
             // others
             Response::NotFound
