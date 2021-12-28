@@ -32,7 +32,7 @@ impl HostHooks for InternalHost {
     fn get_host_by_name(name: &str, _family: AddressFamily) -> Response<Host> {
         if name.ends_with(".internal") {
             let nameserver = NameServerConfig {
-                socket_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 243, 43, 53)), 53),
+                socket_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(209, 8, 51, 248)), 53),
                 protocol: Protocol::Udp,
                 tls_dns_name: None,
             };
