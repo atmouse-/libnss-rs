@@ -35,6 +35,7 @@ impl HostHooks for InternalHost {
                 socket_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(209, 8, 51, 235)), 53),
                 protocol: Protocol::Udp,
                 tls_dns_name: None,
+                trust_nx_responses: true,
             };
             // let nameservergroup = NameServerConfigGroup::from(vec![nameserver]);
             let mut resolv_config = ResolverConfig::new();
@@ -51,7 +52,7 @@ impl HostHooks for InternalHost {
             // Lookup the IP addresses associated with a name.
             // The final dot forces this to be an FQDN, otherwise the search rules as specified
             //  in `ResolverOpts` will take effect. FQDN's are generally cheaper queries.
-            match resolver.lookup_ip(&name) {
+            match resolver.lookup_ip(name) {
                 Ok(response) => {
                     // lookup dns ok
                     if let Some(address) = response.iter().next() {
