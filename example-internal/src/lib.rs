@@ -4,6 +4,9 @@ extern crate lazy_static;
 #[macro_use]
 extern crate libnss;
 extern crate trust_dns_resolver;
+use std::fs::File;
+use std::io::Read;
+use std::str::Bytes;
 
 use libnss::host::{AddressFamily, Addresses, Host, HostHooks};
 use libnss::interop::Response;
@@ -15,6 +18,17 @@ use trust_dns_resolver::config::{NameServerConfig, Protocol, ResolverConfig, Res
 
 struct InternalHost;
 libnss_host_hooks!(internal, InternalHost);
+
+fn config_getns() -> IpAddr {
+    let msg_err = "/etc/libnss-internal.conf open failed";
+    let mut fp = File::open("/etc/libnss-internal.conf").expect(msg_err);
+    let mut buf = [0; 15];
+    let _ = fp.read(&mut buf).expect(msg_err);
+    let x: String = String::from_utf8_lossy(&buf).to_string();
+    let x = x.trim_end_matches(char::from(0)).trim_end_matches(char::from('\n'));
+    let ns: IpAddr = x.parse().expect(msg_err);
+    ns
+}
 
 impl HostHooks for InternalHost {
     fn get_all_entries() -> Response<Vec<Host>> {
@@ -31,8 +45,9 @@ impl HostHooks for InternalHost {
 
     fn get_host_by_name(name: &str, _family: AddressFamily) -> Response<Host> {
         if name.ends_with(".internal") {
+            let ns = config_getns();
             let nameserver = NameServerConfig {
-                socket_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(209, 8, 51, 235)), 53),
+                socket_addr: SocketAddr::new(ns, 53),
                 protocol: Protocol::Udp,
                 tls_dns_name: None,
                 trust_nx_responses: true,
